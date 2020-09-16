@@ -20,16 +20,6 @@ func init() {
 	runtime.LockOSThread()
 }
 
-/*
-func randFloats(n int, min, max float32) []float32 {
-	floats := make([]float32, n)
-	for i := 0; i < n; i++ {
-		floats[i] = min + rand.Float32()*(max-min)
-	}
-	return floats
-}
-*/
-
 func randFloat(min, max float32) float32 {
 	return min + rand.Float32()*(max-min)
 }
@@ -80,7 +70,7 @@ func screenToFile(imageSize int, fileName string) {
 
 func main() {
 	imageSize := 32
-	n := 200
+	n := 10000
 	window := glfwBoilerplate.InitGLFW("", imageSize, imageSize, false)
 	defer glfw.Terminate()
 
@@ -104,11 +94,17 @@ func main() {
 
 	generateTriangle := true
 	ourShader := shader.MakeShaders("genImages.vs", "genImages.fs")
+
+	start := time.Now()
 	i := 0
 	for !window.ShouldClose() && i < n {
 		// Reset
 		gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+		if i%100 == 0 {
+			fmt.Println(i)
+		}
 
 		// Apply a random rotation / slide / scale
 		transform := mgl.Translate3D(
@@ -142,4 +138,6 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
+
+	fmt.Println(time.Now().Sub(start))
 }
