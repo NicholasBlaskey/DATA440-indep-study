@@ -72,7 +72,7 @@ func screenToFile(imageSize int, fileName string) {
 
 func main() {
 	imageSize := 32
-	n := 10
+	n := 200
 	window := glfwBoilerplate.InitGLFW("", imageSize, imageSize, false)
 	defer glfw.Terminate()
 
@@ -96,31 +96,28 @@ func main() {
 		if generateTriangle {
 			numVerts = 6
 		}
-		vertices := randFloats(n, -1, 1)
+		vertices := randFloats(numVerts, -1, 1)
 		gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
 		gl.BufferData(gl.ARRAY_BUFFER, numVerts*4,
 			gl.Ptr(vertices), gl.STATIC_DRAW)
 		gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 
 		// Render to screen
+		fileName := fmt.Sprintf("%d", i)
 		ourShader.Use()
 		gl.BindVertexArray(VAO)
 		if generateTriangle {
-			gl.DrawArrays(gl.TRIANGLE_STRIP, 0, int32(numVerts))
-		} else {
 			gl.DrawArrays(gl.TRIANGLES, 0, int32(numVerts))
-		}
-		gl.BindVertexArray(0)
-
-		time.Sleep(time.Millisecond * 1000)
-
-		// Save screen (default framebuffer to file)
-		fileName := fmt.Sprintf("%d", i)
-		if generateTriangle {
 			fileName = "./triangle/" + fileName
 		} else {
 			fileName = "./quad/" + fileName
+			gl.DrawArrays(gl.TRIANGLE_STRIP, 0, int32(numVerts))
 		}
+		gl.BindVertexArray(0)
+
+		time.Sleep(time.Millisecond * 0)
+
+		// Save screen (default framebuffer to file)
 		screenToFile(imageSize, fileName)
 
 		generateTriangle = !generateTriangle
