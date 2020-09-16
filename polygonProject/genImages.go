@@ -10,6 +10,8 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.1/glfw"
 
+	mgl "github.com/go-gl/mathgl/mgl32"
+
 	"github.com/nicholasblaskey/Conways-Game-Of-Life/glfwBoilerplate"
 	"github.com/nicholasblaskey/go-learn-opengl/includes/shader"
 )
@@ -18,12 +20,18 @@ func init() {
 	runtime.LockOSThread()
 }
 
+/*
 func randFloats(n int, min, max float32) []float32 {
 	floats := make([]float32, n)
 	for i := 0; i < n; i++ {
 		floats[i] = min + rand.Float32()*(max-min)
 	}
 	return floats
+}
+*/
+
+func randFloat(min, max float32) float32 {
+	return min + rand.Float32()*(max-min)
 }
 
 // Vertices is formatted like this
@@ -77,13 +85,24 @@ func main() {
 	defer glfw.Terminate()
 
 	rand.Seed(time.Now().Unix())
-	//vertices := randFloats(8, -1, 1) //[]float32{0.2, 0.2, 0.3, 0.5, 0.9, 0.7, 0.3, 0.2}
-	VAO, VBO := makeBuffers([]float32{-1})
-	defer gl.DeleteVertexArrays(1, &VAO)
-	defer gl.DeleteVertexArrays(1, &VBO)
+	triangleVAO, triangleVBO := makeBuffers([]float32{
+		0.0, 0.0,
+		0.5, 0.5,
+		-0.5, 0.5,
+	})
+	// Divide 0.5 by two to ensure both shapes have same starting area
+	squareVAO, squareVBO := makeBuffers([]float32{
+		-0.5 / 2.0, -0.5 / 2.0,
+		0.5 / 2.0, -0.5 / 2.0,
+		-0.5 / 2.0, 0.5 / 2.0,
+		0.5 / 2.0, 0.5 / 2.0,
+	})
+	defer gl.DeleteVertexArrays(1, &triangleVAO)
+	defer gl.DeleteVertexArrays(1, &triangleVBO)
+	defer gl.DeleteVertexArrays(1, &squareVAO)
+	defer gl.DeleteVertexArrays(1, &squareVBO)
 
 	generateTriangle := true
-
 	ourShader := shader.MakeShaders("genImages.vs", "genImages.fs")
 	i := 0
 	for !window.ShouldClose() && i < n {
@@ -91,33 +110,31 @@ func main() {
 		gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// Update VBO (aka update vertices)
-		numVerts := 8
-		if generateTriangle {
-			numVerts = 6
-		}
-		vertices := randFloats(numVerts, -1, 1)
-		gl.BindBuffer(gl.ARRAY_BUFFER, VBO)
-		gl.BufferData(gl.ARRAY_BUFFER, numVerts*4,
-			gl.Ptr(vertices), gl.STATIC_DRAW)
-		gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+		// Apply a random rotation / slide / scale
+		transform := mgl.Translate3D(
+			randFloat(-0.45, 0.45), randFloat(-0.45, 0.45), 0)
+		transform = transform.Mul4(
+			mgl.HomogRotate3D(randFloat(-9, 9), mgl.Vec3{0.0, 0.0, 1.0}))
+		transform = transform.Mul4(
+			mgl.Scale3D(randFloat(0.5, 1.5), randFloat(0.5, 1.5), 0))
+		ourShader.SetMat4("transform", transform)
 
 		// Render to screen
-		fileName := fmt.Sprintf("%d", i)
 		ourShader.Use()
-		gl.BindVertexArray(VAO)
+		fileName := fmt.Sprintf("%d", i)
 		if generateTriangle {
-			gl.DrawArrays(gl.TRIANGLES, 0, int32(numVerts))
+			gl.BindVertexArray(triangleVAO)
+			gl.DrawArrays(gl.TRIANGLES, 0, 6)
 			fileName = "./triangle/" + fileName
 		} else {
-			fileName = "./quad/" + fileName
-			gl.DrawArrays(gl.TRIANGLE_STRIP, 0, int32(numVerts))
+			gl.BindVertexArray(squareVAO)
+			gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 8)
+			fileName = "./square/" + fileName
 		}
-		gl.BindVertexArray(0)
 
 		time.Sleep(time.Millisecond * 0)
 
-		// Save screen (default framebuffer to file)
+		// Save screen
 		screenToFile(imageSize, fileName)
 
 		generateTriangle = !generateTriangle
