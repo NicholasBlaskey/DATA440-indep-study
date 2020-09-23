@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"runtime"
@@ -24,9 +25,22 @@ func randFloat(min, max float32) float32 {
 	return min + rand.Float32()*(max-min)
 }
 
+func makePolygon(n int, radius float32) []float32 {
+	angleIncrement := mgl.DegToRad(360.0 / float32(n))
+	verts := []float32{}
+	angle := 0.0
+	for i := 0; i < n; i++ {
+		verts = append(verts,
+			radius*float32(math.Cos(angle)),
+			radius*float32(math.Sin(angle)))
+		angle += float64(angleIncrement)
+	}
+	return verts
+}
+
 // Vertices is formatted like this
 // []float32{x0, y0, x1, y1, ...}
-func makeBuffers(vertices []float32) (uint32, uint32) {
+func makeBuffers(vertices []float32) uint32 {
 	var VAO, VBO uint32
 	gl.GenVertexArrays(1, &VAO)
 	gl.GenBuffers(1, &VBO)
@@ -39,7 +53,7 @@ func makeBuffers(vertices []float32) (uint32, uint32) {
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 2*4, gl.PtrOffset(0))
 
-	return VAO, VBO
+	return VAO
 }
 
 func screenToFile(imageSize int, fileName string) {
@@ -70,41 +84,31 @@ func screenToFile(imageSize int, fileName string) {
 
 func main() {
 	imageSize := 32
-	n := 10000
+	n := 10
 	window := glfwBoilerplate.InitGLFW("", imageSize, imageSize, false)
 	defer glfw.Terminate()
 
-	rand.Seed(time.Now().Unix())
-	triangleVAO, triangleVBO := makeBuffers([]float32{
-		0.0, 0.0,
-		0.5, 0.5,
-		-0.5, 0.5,
-	})
-	// Divide 0.5 by two to ensure both shapes have same starting area
-	squareVAO, squareVBO := makeBuffers([]float32{
-		-0.5 / 2.0, -0.5 / 2.0,
-		0.5 / 2.0, -0.5 / 2.0,
-		-0.5 / 2.0, 0.5 / 2.0,
-		0.5 / 2.0, 0.5 / 2.0,
-	})
-	defer gl.DeleteVertexArrays(1, &triangleVAO)
-	defer gl.DeleteVertexArrays(1, &triangleVBO)
-	defer gl.DeleteVertexArrays(1, &squareVAO)
-	defer gl.DeleteVertexArrays(1, &squareVBO)
-
-	generateTriangle := true
+	shapes := []struct {
+		method uint32
+		n      int32
+		VAO    uint32
+	}{
+		{gl.TRIANGLE_FAN, 3, makeBuffers(makePolygon(3, 0.25))},
+		{gl.TRIANGLE_FAN, 4, makeBuffers(makePolygon(4, 0.25))},
+		{gl.TRIANGLE_FAN, 5, makeBuffers(makePolygon(5, 0.25))},
+		{gl.TRIANGLE_FAN, 6, makeBuffers(makePolygon(6, 0.25))},
+	}
 	ourShader := shader.MakeShaders("genImages.vs", "genImages.fs")
 
-	start := time.Now()
+	shapeIndex := 0
 	i := 0
-	for !window.ShouldClose() && i < n {
+
+	start := time.Now()
+	rand.Seed(start.Unix())
+	for !window.ShouldClose() && shapeIndex != len(shapes) {
 		// Reset
 		gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-		if i%100 == 0 {
-			fmt.Println(i)
-		}
 
 		// Apply a random rotation / slide / scale
 		transform := mgl.Translate3D(
@@ -115,29 +119,20 @@ func main() {
 			mgl.Scale3D(randFloat(0.5, 1.5), randFloat(0.5, 1.5), 0))
 		ourShader.SetMat4("transform", transform)
 
-		// Render to screen
+		// Render and save to file
 		ourShader.Use()
-		fileName := fmt.Sprintf("%d", i)
-		if generateTriangle {
-			gl.BindVertexArray(triangleVAO)
-			gl.DrawArrays(gl.TRIANGLES, 0, 6)
-			fileName = "./triangle/" + fileName
-		} else {
-			gl.BindVertexArray(squareVAO)
-			gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 8)
-			fileName = "./square/" + fileName
-		}
+		gl.BindVertexArray(shapes[shapeIndex].VAO)
+		gl.DrawArrays(shapes[shapeIndex].method, 0, shapes[shapeIndex].n*2)
+		screenToFile(imageSize, fmt.Sprintf("./%d/%d", shapes[shapeIndex].n, i))
 
-		time.Sleep(time.Millisecond * 500)
-
-		// Save screen
-		//screenToFile(imageSize, fileName)
-		_ = fileName
-
-		generateTriangle = !generateTriangle
-		i += 1
 		window.SwapBuffers()
 		glfw.PollEvents()
+
+		i += 1
+		if i == n {
+			i = 0
+			shapeIndex += 1
+		}
 	}
 
 	fmt.Println(time.Now().Sub(start))
