@@ -84,7 +84,7 @@ func screenToFile(imageSize int, fileName string) {
 
 func main() {
 	imageSize := 32
-	n := 100
+	n := 1000
 	window := glfwBoilerplate.InitGLFW("", imageSize, imageSize, false)
 	defer glfw.Terminate()
 
