@@ -84,7 +84,7 @@ func screenToFile(imageSize int, fileName string) {
 
 func main() {
 	imageSize := 32
-	n := 10
+	n := 100
 	window := glfwBoilerplate.InitGLFW("", imageSize, imageSize, false)
 	defer glfw.Terminate()
 
@@ -129,7 +129,12 @@ func main() {
 		glfw.PollEvents()
 
 		i += 1
+		if i%100 == 0 {
+			fmt.Println(i)
+		}
+
 		if i == n {
+			fmt.Println("Finished class")
 			i = 0
 			shapeIndex += 1
 		}
