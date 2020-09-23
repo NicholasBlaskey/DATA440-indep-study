@@ -88,15 +88,16 @@ func main() {
 	window := glfwBoilerplate.InitGLFW("", imageSize, imageSize, false)
 	defer glfw.Terminate()
 
+	radius := float32(0.5)
 	shapes := []struct {
 		method uint32
 		n      int32
 		VAO    uint32
 	}{
-		{gl.TRIANGLE_FAN, 3, makeBuffers(makePolygon(3, 0.25))},
-		{gl.TRIANGLE_FAN, 4, makeBuffers(makePolygon(4, 0.25))},
-		{gl.TRIANGLE_FAN, 5, makeBuffers(makePolygon(5, 0.25))},
-		{gl.TRIANGLE_FAN, 6, makeBuffers(makePolygon(6, 0.25))},
+		{gl.TRIANGLE_FAN, 3, makeBuffers(makePolygon(3, radius))},
+		{gl.TRIANGLE_FAN, 4, makeBuffers(makePolygon(4, radius))},
+		{gl.TRIANGLE_FAN, 5, makeBuffers(makePolygon(5, radius))},
+		{gl.TRIANGLE_FAN, 6, makeBuffers(makePolygon(6, radius))},
 	}
 	ourShader := shader.MakeShaders("genImages.vs", "genImages.fs")
 
