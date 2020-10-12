@@ -20,6 +20,14 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
+const (
+	maxCol float32 = 1.0  // Intensity of the colors cols will be
+	minCol float32 = 0.2  // (maxCol, minCol, minCol), (minCol, maxCol, minCol)...
+	DT     float32 = 0.01 // Time step because we are saving each frame will be constant
+	width          = 512  // 1920 //512
+	height         = 512  // 1080 //512
+)
+
 func init() {
 	runtime.LockOSThread()
 }
@@ -906,10 +914,12 @@ func update(programs *shaders, fbos *framebuffers,
 
 func calcDeltaTime(lastUpdateTime float32) (float32, float32) {
 	now := float32(glfw.GetTime())
-	dt := (now - lastUpdateTime) / 1000
-	if dt < 0.016666 {
-		dt = 0.016666
-	}
+
+	dt := float32(DT)
+	//dt := (now - lastUpdateTime) / 1000
+	//if dt < 0.016666 {
+	//	dt = 0.016666
+	//}
 
 	return dt, now
 }
@@ -1082,11 +1092,6 @@ func step(programs *shaders, fbos *framebuffers, dt float32) {
 	fbos.dye.swap()
 }
 
-const (
-	maxCol float32 = 1.0
-	minCol float32 = 0.2
-)
-
 // Splats
 func multipleSplats(programs *shaders, fbos *framebuffers, n int) {
 
@@ -1134,8 +1139,6 @@ func correctRadius(r float32) float32 {
 var (
 	programs    *shaders      = nil
 	fbos        *framebuffers = nil
-	width                     = 512 //1920 //512
-	height                    = 512 //1080 //512
 	copyProgram *Shader       = nil
 )
 
@@ -1174,8 +1177,6 @@ func main() {
 	for !window.ShouldClose() {
 		lastTime, numFrames = DisplayFrameRate(window, "", numFrames, lastTime)
 		prev = update(programs, fbos, displayMaterial, prev)
-
-		time.Sleep(time.Millisecond * 0) //time.Millisecond * 250)
 
 		window.SwapBuffers()
 		glfw.PollEvents()
