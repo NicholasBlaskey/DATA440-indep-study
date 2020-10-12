@@ -11,10 +11,9 @@ import (
 
 	"image"
 	"image/draw"
-	_ "image/png"
+	"image/png"
 	"os"
 
-	"errors"
 	"strconv"
 
 	mgl "github.com/go-gl/mathgl/mgl32"
@@ -29,6 +28,7 @@ const (
 	maxCol          float32 = 1.0  // Intensity of the colors cols will be
 	minCol          float32 = 0.2  // (maxCol, minCol, minCol), (minCol, maxCol, minCol)...
 	DT              float32 = 0.01 // Time step because we are saving each frame will be constant
+	saveEvery               = 5    // Save every nth time step
 	width                   = 512  // 1920 //512
 	height                  = 512  // 1080 //512
 )
@@ -1172,7 +1172,8 @@ func main() {
 	displayMaterial := newMaterial(baseVertexShader, displayShader)
 	displayMaterial.setKeywords([]string{})
 
-	sampleDir, sampleIndex := makeNextSampleDir(-1)
+	var sampleDir string
+	var sampleIndex int
 	i := 0
 
 	lastTime := 0.0
@@ -1181,10 +1182,6 @@ func main() {
 	for !window.ShouldClose() {
 		lastTime, numFrames = DisplayFrameRate(window, "", numFrames, lastTime)
 		prev = update(programs, fbos, displayMaterial, prev)
-		err := saveFrame(sampleDir)
-		if err != nil {
-			fmt.Println("WARNING frame failed to save", err.Error())
-		}
 
 		if i%framesPerSample == 0 {
 			fmt.Println(sampleDir)
@@ -1192,6 +1189,14 @@ func main() {
 			multipleSplats(programs, fbos, 3)
 			i = 0
 		}
+
+		if i%saveEvery == 0 {
+			err := saveFrame(sampleDir, i)
+			if err != nil {
+				fmt.Println("WARNING frame failed to save", err.Error())
+			}
+		}
+
 		i += 1
 
 		window.SwapBuffers()
@@ -1206,6 +1211,8 @@ func makeNextSampleDir(max int) (string, int) {
 			panic(fmt.Sprintf("%s, %s",
 				"Data directory does not exist", err.Error()))
 		}
+		defer dir.Close()
+
 		dirnames, err := dir.Readdirnames(0)
 		if err != nil {
 			panic(fmt.Sprintf("%s, %s",
@@ -1234,13 +1241,24 @@ func makeNextSampleDir(max int) (string, int) {
 	return nextSampleDir, max + 1
 }
 
-func saveFrame(dir string) error {
+func saveFrame(dir string, imageIndex int) error {
 	// Read data into a buffer
+	pixels := make([]byte, width*height*4)
+	gl.ReadPixels(0, 0, int32(width), int32(height),
+		gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(pixels))
 
-	// Read buffer into an image
+	outImg := image.NewRGBA(image.Rect(0, 0, width, height))
+	outImg.Pix = pixels
 
-	// Save image
-	return errors.New("FAILED")
+	outFile, err := os.Create(fmt.Sprintf("%s/%d.png", dir, imageIndex))
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	png.Encode(outFile, outImg)
+
+	return nil
 }
 
 func DisplayFrameRate(window *glfw.Window, title string,
