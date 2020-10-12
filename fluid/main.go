@@ -23,14 +23,16 @@ import (
 )
 
 const (
-	dataDir                 = "./images/"
-	framesPerSample         = 200
+	samplesRan = 10
+
+	dataDir                 = "./benchmark/b4/" //"./benchmark/images/"
+	framesPerSample         = 275
 	maxCol          float32 = 1.0  // Intensity of the colors cols will be
 	minCol          float32 = 0.2  // (maxCol, minCol, minCol), (minCol, maxCol, minCol)...
 	DT              float32 = 0.01 // Time step because we are saving each frame will be constant
 	saveEvery               = 5    // Save every nth time step
-	width                   = 512  // 1920 //512
-	height                  = 512  // 1080 //512
+	width                   = 1024 // 1920 //512
+	height                  = 1024 // 1080 //512
 )
 
 func init() {
@@ -1173,17 +1175,25 @@ func main() {
 	displayMaterial.setKeywords([]string{})
 
 	var sampleDir string
-	var sampleIndex int
+	sampleIndex := -1
 	i := 0
 
 	lastTime := 0.0
 	numFrames := 0.0
 	prev := float32(glfw.GetTime())
+
+	startTime := time.Now()
+	samplesGenerated := 0
 	for !window.ShouldClose() {
 		lastTime, numFrames = DisplayFrameRate(window, "", numFrames, lastTime)
 		prev = update(programs, fbos, displayMaterial, prev)
 
 		if i%framesPerSample == 0 {
+			if samplesGenerated == samplesRan {
+				break
+			}
+			samplesGenerated += 1
+
 			fmt.Println(sampleDir)
 			sampleDir, sampleIndex = makeNextSampleDir(sampleIndex)
 			multipleSplats(programs, fbos, 3)
@@ -1191,7 +1201,7 @@ func main() {
 		}
 
 		if i%saveEvery == 0 {
-			err := saveFrame(sampleDir, i)
+			err := saveFrame(sampleDir, i/saveEvery)
 			if err != nil {
 				fmt.Println("WARNING frame failed to save", err.Error())
 			}
@@ -1202,6 +1212,8 @@ func main() {
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
+
+	fmt.Println(time.Now().Sub(startTime))
 }
 
 func makeNextSampleDir(max int) (string, int) {
