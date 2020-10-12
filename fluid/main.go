@@ -14,6 +14,9 @@ import (
 	_ "image/png"
 	"os"
 
+	"errors"
+	"strconv"
+
 	mgl "github.com/go-gl/mathgl/mgl32"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -21,11 +24,13 @@ import (
 )
 
 const (
-	maxCol float32 = 1.0  // Intensity of the colors cols will be
-	minCol float32 = 0.2  // (maxCol, minCol, minCol), (minCol, maxCol, minCol)...
-	DT     float32 = 0.01 // Time step because we are saving each frame will be constant
-	width          = 512  // 1920 //512
-	height         = 512  // 1080 //512
+	dataDir                 = "./images/"
+	framesPerSample         = 200
+	maxCol          float32 = 1.0  // Intensity of the colors cols will be
+	minCol          float32 = 0.2  // (maxCol, minCol, minCol), (minCol, maxCol, minCol)...
+	DT              float32 = 0.01 // Time step because we are saving each frame will be constant
+	width                   = 512  // 1920 //512
+	height                  = 512  // 1080 //512
 )
 
 func init() {
@@ -1167,9 +1172,8 @@ func main() {
 	displayMaterial := newMaterial(baseVertexShader, displayShader)
 	displayMaterial.setKeywords([]string{})
 
-	for i := 0; i < 5; i++ {
-		multipleSplats(programs, fbos, 3)
-	}
+	sampleDir, sampleIndex := makeNextSampleDir(-1)
+	i := 0
 
 	lastTime := 0.0
 	numFrames := 0.0
@@ -1177,10 +1181,66 @@ func main() {
 	for !window.ShouldClose() {
 		lastTime, numFrames = DisplayFrameRate(window, "", numFrames, lastTime)
 		prev = update(programs, fbos, displayMaterial, prev)
+		err := saveFrame(sampleDir)
+		if err != nil {
+			fmt.Println("WARNING frame failed to save", err.Error())
+		}
+
+		if i%framesPerSample == 0 {
+			fmt.Println(sampleDir)
+			sampleDir, sampleIndex = makeNextSampleDir(sampleIndex)
+			multipleSplats(programs, fbos, 3)
+			i = 0
+		}
+		i += 1
 
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
+}
+
+func makeNextSampleDir(max int) (string, int) {
+	if max == -1 {
+		dir, err := os.Open(dataDir)
+		if err != nil {
+			panic(fmt.Sprintf("%s, %s",
+				"Data directory does not exist", err.Error()))
+		}
+		dirnames, err := dir.Readdirnames(0)
+		if err != nil {
+			panic(fmt.Sprintf("%s, %s",
+				"Could not read dir names", err.Error()))
+		}
+
+		for _, dirname := range dirnames {
+			i, err := strconv.Atoi(dirname)
+			if err != nil {
+				panic("Non integer data directory")
+			}
+			if i > max {
+				max = i
+			}
+		}
+	}
+
+	nextSampleDir := fmt.Sprintf("%s%d", dataDir, max+1)
+
+	// https://stackoverflow.com/questions/14249467/os-mkdir-and-os-mkdirall-permission-value
+	err := os.Mkdir(nextSampleDir, 0777) // 0777 is everyone can read and write
+	if err != nil {
+		panic(err)
+	}
+
+	return nextSampleDir, max + 1
+}
+
+func saveFrame(dir string) error {
+	// Read data into a buffer
+
+	// Read buffer into an image
+
+	// Save image
+	return errors.New("FAILED")
 }
 
 func DisplayFrameRate(window *glfw.Window, title string,
