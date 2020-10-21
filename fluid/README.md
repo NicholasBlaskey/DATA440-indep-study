@@ -42,9 +42,11 @@ The time is relatively constant across the actual rendering because of the way t
 
 512 gives really good detail. 256 also gives a hint of the detail but not as great.
 
-#### Multithreaded and GPU
+#### Multithreading and GPU
 
-By converting the encoding to the PNG with the same settings as b4 we got a time of 45.836481204s. Now we are limited by the GPU instead of CPU bound likely. By running on my other laptop which has a GPU I got 36.4477372s.
+By converting the encoding to the PNG to run on a seperate thread as the rendering with the same settings as the width of 1024 we got a time of 45.836481204s.
+
+Now we are limited by the GPU instead of CPU bound likely. By running on my other laptop which has a GPU I got 36.4477372s which massively improves when smaller resolutions are used.
 
 
 #### Paramters used
@@ -55,4 +57,5 @@ We are going to stick with a dt of 0.01 because it gives a reasonable result.
 
 We are going to stick to saving every 3rd frame because it is the lowest amount of frames saved that can be handled by my computers CPUs without slowing down the GPU bound part. It also gives good enough results.
 
-My laptop takes 24.6483853s to run 10 samples.
+My laptop takes 24.6483853s to run 10 samples which will gives around 44 minutes to generate 1000.
+
