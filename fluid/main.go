@@ -5,7 +5,8 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"runtime"
+	//"runtime"
+	"github.com/faiface/mainthread"
 	"time"
 	"unsafe"
 
@@ -25,7 +26,7 @@ import (
 const (
 	samplesRan = 10
 
-	dataDir                 = "./benchmark/b4/" //"./benchmark/images/"
+	dataDir                 = "./benchmark/b5/" //"./benchmark/images/"
 	framesPerSample         = 275
 	maxCol          float32 = 1.0  // Intensity of the colors cols will be
 	minCol          float32 = 0.2  // (maxCol, minCol, minCol), (minCol, maxCol, minCol)...
@@ -35,9 +36,11 @@ const (
 	height                  = 1024 // 1080 //512
 )
 
+/*
 func init() {
 	runtime.LockOSThread()
 }
+*/
 
 // We will move everything to its own module later on
 // Create window
@@ -1150,70 +1153,84 @@ var (
 )
 
 // Run simulation
-func main() {
-	window := initGLFW("Fluid sim", width, height)
-	_ = window
-
-	rand.Seed(time.Now().UTC().UnixNano())
-
-	initBlit()
-	copyProgram = MakeShaders(baseVertexShader, copyShader)
-	programs = &shaders{
-		MakeShaders(baseVertexShader, curlShader),
-		MakeShaders(baseVertexShader, vorticityShader),
-		MakeShaders(baseVertexShader, divergenceShader),
-		MakeShaders(baseVertexShader, clearShader),
-		MakeShaders(baseVertexShader, pressureShader),
-		MakeShaders(baseVertexShader, gradientSubtractShader),
-		MakeShaders(baseVertexShader, advectionShader),
-		MakeShaders(baseVertexShader, colorShader),
-		MakeShaders(baseVertexShader, displayShader),
-		MakeShaders(baseVertexShader, splatShader),
-	}
-	fbos = initFramebuffers(nil)
-	displayMaterial := newMaterial(baseVertexShader, displayShader)
-	displayMaterial.setKeywords([]string{})
+func simulate() {
+	var window *glfw.Window
 
 	var sampleDir string
 	sampleIndex := -1
 	i := 0
-
+	shouldBreak := false
 	lastTime := 0.0
 	numFrames := 0.0
-	prev := float32(glfw.GetTime())
-
+	prev := float32(0.0)
 	startTime := time.Now()
 	samplesGenerated := 0
-	for !window.ShouldClose() {
-		lastTime, numFrames = DisplayFrameRate(window, "", numFrames, lastTime)
-		prev = update(programs, fbos, displayMaterial, prev)
+	var displayMaterial *material
 
-		if i%framesPerSample == 0 {
-			if samplesGenerated == samplesRan {
-				break
+	mainthread.Call(func() {
+
+		fmt.Println("START")
+		window = initGLFW("Fluid sim", width, height)
+		_ = window
+
+		rand.Seed(time.Now().UTC().UnixNano())
+
+		initBlit()
+		copyProgram = MakeShaders(baseVertexShader, copyShader)
+		programs = &shaders{
+			MakeShaders(baseVertexShader, curlShader),
+			MakeShaders(baseVertexShader, vorticityShader),
+			MakeShaders(baseVertexShader, divergenceShader),
+			MakeShaders(baseVertexShader, clearShader),
+			MakeShaders(baseVertexShader, pressureShader),
+			MakeShaders(baseVertexShader, gradientSubtractShader),
+			MakeShaders(baseVertexShader, advectionShader),
+			MakeShaders(baseVertexShader, colorShader),
+			MakeShaders(baseVertexShader, displayShader),
+			MakeShaders(baseVertexShader, splatShader),
+		}
+		fbos = initFramebuffers(nil)
+		displayMaterial = newMaterial(baseVertexShader, displayShader)
+		displayMaterial.setKeywords([]string{})
+
+	})
+	for {
+		mainthread.Call(func() {
+			lastTime, numFrames = DisplayFrameRate(window, "", numFrames, lastTime)
+			prev = update(programs, fbos, displayMaterial, prev)
+
+			window.SwapBuffers()
+			glfw.PollEvents()
+
+			if i%framesPerSample == 0 {
+				if samplesGenerated == samplesRan {
+					shouldBreak = true
+					return
+				}
+				samplesGenerated += 1
+
+				fmt.Println(sampleDir)
+				sampleDir, sampleIndex = makeNextSampleDir(sampleIndex)
+				multipleSplats(programs, fbos, 3)
+				i = 0
 			}
-			samplesGenerated += 1
+		})
 
-			fmt.Println(sampleDir)
-			sampleDir, sampleIndex = makeNextSampleDir(sampleIndex)
-			multipleSplats(programs, fbos, 3)
-			i = 0
+		if shouldBreak {
+			break
 		}
 
 		if i%saveEvery == 0 {
-			err := saveFrame(sampleDir, i/saveEvery)
-			if err != nil {
-				fmt.Println("WARNING frame failed to save", err.Error())
-			}
+			go saveFrame(sampleDir, i/saveEvery)
 		}
-
 		i += 1
-
-		window.SwapBuffers()
-		glfw.PollEvents()
 	}
-
 	fmt.Println(time.Now().Sub(startTime))
+	time.Sleep(time.Second * 5)
+}
+
+func main() {
+	mainthread.Run(simulate)
 }
 
 func makeNextSampleDir(max int) (string, int) {
@@ -1264,6 +1281,7 @@ func saveFrame(dir string, imageIndex int) error {
 
 	outFile, err := os.Create(fmt.Sprintf("%s/%d.png", dir, imageIndex))
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	defer outFile.Close()

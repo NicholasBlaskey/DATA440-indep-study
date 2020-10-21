@@ -55,4 +55,6 @@ Let's just assume we are gonna generate 10,000 samples.
 512 would need 2.3GB
 1024 would need 7GB
 
-512 gives really good detail. 256 also gives a peak of the detail but not as great. 
+512 gives really good detail. 256 also gives a peak of the detail but not as great.
+
+By converting the encoding to the PNG with the same settings as b4 we got a time of 45.836481204s. Now we are limited by the GPU instead of CPU bound likely.
