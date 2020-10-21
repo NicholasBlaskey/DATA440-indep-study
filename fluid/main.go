@@ -1167,6 +1167,8 @@ func simulate() {
 	samplesGenerated := 0
 	var displayMaterial *material
 
+	var pixels []byte
+	
 	mainthread.Call(func() {
 
 		fmt.Println("START")
@@ -1214,6 +1216,13 @@ func simulate() {
 				multipleSplats(programs, fbos, 3)
 				i = 0
 			}
+
+			if i%saveEvery == 0{
+				// Read data into a buffer
+				pixels = make([]byte, width*height*4)
+				gl.ReadPixels(0, 0, int32(width), int32(height),
+					gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(pixels))
+			}
 		})
 
 		if shouldBreak {
@@ -1221,7 +1230,8 @@ func simulate() {
 		}
 
 		if i%saveEvery == 0 {
-			go saveFrame(sampleDir, i/saveEvery)
+			
+			go saveFrame(pixels, sampleDir, i/saveEvery)
 		}
 		i += 1
 	}
@@ -1270,12 +1280,7 @@ func makeNextSampleDir(max int) (string, int) {
 	return nextSampleDir, max + 1
 }
 
-func saveFrame(dir string, imageIndex int) error {
-	// Read data into a buffer
-	pixels := make([]byte, width*height*4)
-	gl.ReadPixels(0, 0, int32(width), int32(height),
-		gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(pixels))
-
+func saveFrame(pixels []byte, dir string, imageIndex int) error {
 	outImg := image.NewRGBA(image.Rect(0, 0, width, height))
 	outImg.Pix = pixels
 
