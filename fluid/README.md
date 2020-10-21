@@ -28,34 +28,19 @@ This is how many frames we are going to use in sample. This we want to be large 
 
 #### First let's look at the effect of setting width and height. 
 
-10 samples of images were generated for each combination.
+10 samples of images were generated for each combination. This was done before further optimizations later on.
 
-b2 = framesPerSample = 275, DT = 0.01, saveEvery = 5, width = 128
+| framesPerSample | DT   | saveEvery | Width | time (seconds) | size (MB) | size for 10,000 samples (GB) |
+| --------------- | ---- | ----------| ----- | -------------- | --------- | ---------------------------- |
+| 275             | 0.01 | 5         | 128   | 45.79          | 3.8       | 0.380                        |
+| 275             | 0.01 | 5         | 256   | 46.00          | 9.2       | 0.920                        |
+| 275             | 0.01 | 5         | 512   | 55.80          | 23        | 2.3                          |
+| 275             | 0.01 | 5         | 1024  | 161.50         | 70        | 7.0                          |
 
-45.794378837s, 3.8M
-
-b3 = framesPerSample = 275, DT = 0.01, saveEvery = 5, width = 256
-
-46.004321232s, 9.2M
-
-b1 = framesPerSample = 275, DT = 0.01, saveEvery = 5, width = 512
-
-55.79745923s, 23M
-
-b4 = framesPerSample = 275, DT = 0.01, saveEvery = 5, width = 1024
-
-2m41.497036213s, 70M
 
 The time is relatively constant across the actual rendering because of the way the solver uses framebuffer. The real increase in time is the making of PNG files and getting data out of the framebuffer for the GPU encoding.
 
-Let's just assume we are gonna generate 10,000 samples.
-
-128 would need 380MB
-256 would need 920MB
-512 would need 2.3GB
-1024 would need 7GB
-
-512 gives really good detail. 256 also gives a peak of the detail but not as great.
+512 gives really good detail. 256 also gives a hint of the detail but not as great.
 
 #### Multithreaded and GPU
 
