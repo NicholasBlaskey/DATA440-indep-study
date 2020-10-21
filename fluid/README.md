@@ -57,4 +57,17 @@ Let's just assume we are gonna generate 10,000 samples.
 
 512 gives really good detail. 256 also gives a peak of the detail but not as great.
 
-By converting the encoding to the PNG with the same settings as b4 we got a time of 45.836481204s. Now we are limited by the GPU instead of CPU bound likely.
+#### Multithreaded and GPU
+
+By converting the encoding to the PNG with the same settings as b4 we got a time of 45.836481204s. Now we are limited by the GPU instead of CPU bound likely. By running on my other laptop which has a GPU I got 36.4477372s.
+
+
+#### Paramters used
+
+We are going to use 512px by 512px images because of the detail that is allowed to be captured and we can scale them down later.
+
+We are going to stick with a dt of 0.01 because it gives a reasonable result.
+
+We are going to stick to saving every 3rd frame because it is the lowest amount of frames saved that can be handled by my computers CPUs without slowing down the GPU bound part. It also gives good enough results.
+
+My laptop takes 24.6483853s to run 10 samples.

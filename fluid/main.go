@@ -26,14 +26,14 @@ import (
 const (
 	samplesRan = 10
 
-	dataDir                 = "./benchmark/b5/" //"./benchmark/images/"
-	framesPerSample         = 275
+	dataDir                 = "./benchmark/b6/" //"./benchmark/images/"
+	framesPerSample         = 275  // 
 	maxCol          float32 = 1.0  // Intensity of the colors cols will be
 	minCol          float32 = 0.2  // (maxCol, minCol, minCol), (minCol, maxCol, minCol)...
 	DT              float32 = 0.01 // Time step because we are saving each frame will be constant
-	saveEvery               = 5    // Save every nth time step
-	width                   = 1024 // 1920 //512
-	height                  = 1024 // 1080 //512
+	saveEvery               = 3    // Save every nth time step
+	width                   = 512  // 1920 //512
+	height                  = 512  // 1080 //512
 )
 
 /*
@@ -1160,6 +1160,7 @@ func simulate() {
 	sampleIndex := -1
 	i := 0
 	shouldBreak := false
+	shouldSave := false
 	lastTime := 0.0
 	numFrames := 0.0
 	prev := float32(0.0)
@@ -1217,7 +1218,8 @@ func simulate() {
 				i = 0
 			}
 
-			if i%saveEvery == 0{
+			if i%saveEvery == 0 && i/saveEvery <= 75 && i > 0 {
+				shouldSave = true
 				// Read data into a buffer
 				pixels = make([]byte, width*height*4)
 				gl.ReadPixels(0, 0, int32(width), int32(height),
@@ -1229,10 +1231,10 @@ func simulate() {
 			break
 		}
 
-		if i%saveEvery == 0 {
-			
+		if shouldSave {			
 			go saveFrame(pixels, sampleDir, i/saveEvery)
 		}
+		shouldSave = false
 		i += 1
 	}
 	fmt.Println(time.Now().Sub(startTime))
