@@ -24,15 +24,19 @@ SOFTWARE.
 
 'use strict';
 
+const imageSize = 64;
 const canvas = document.createElement("canvas");
-canvas.width = 64;
-canvas.height = 64;
+canvas.width = imageSize;
+canvas.height = imageSize;
 document.body.appendChild(canvas)
 
 
-
-const model = tf.loadLayersModel("./layersGenerator/model.json");
-
+let model = {};
+tf.loadLayersModel("./layersGenerator/model.json").then(function(res) {
+    console.log("PROMISE OFF");
+    model = res;
+});
+console.log(model);
 
 let config = {
     SIM_RESOLUTION: 512,
@@ -1060,7 +1064,7 @@ function updateKeywords () {
 
 updateKeywords();
 initFramebuffers();
-multipleSplats(parseInt(Math.random() * 20) + 5);
+//multipleSplats(parseInt(Math.random() * 20) + 5);
 
 let lastUpdateTime = Date.now();
 let colorUpdateTimer = 0.0;
@@ -1310,10 +1314,11 @@ function multipleSplats (amount) {
         const dy = 1000 * (Math.random() - 0.5);
         splat(x, y, dx, dy, cols[i]);
     }
+
+    readPixels()
 }
 
 function splat (x, y, dx, dy, color) {
-    console.log(color);
     splatProgram.bind();
     gl.uniform1i(splatProgram.uniforms.uTarget, velocity.read.attach(0));
     gl.uniform1f(splatProgram.uniforms.aspectRatio, canvas.width / canvas.height);
@@ -1519,3 +1524,28 @@ function hashCode (s) {
     }
     return hash;
 };
+
+
+// Tensorflow stuff
+// Read the WebGL Pixels into a tensor to seed the model
+function readPixels() {
+    let pixels = new Float32Array(imageSize * imageSize * 4);
+    gl.readPixels(0, 0, imageSize, imageSize, gl.RGBA, gl.FLOAT, pixels); // TODO change after viewport
+
+    // Remove alpha values (webgl requires we take them) Ideally we would do this
+    // with a tensor opertation but I am not sure how to do that easily
+    pixels = pixels.filter(function(_, i) {
+        return (i + 1) % 4;
+    })
+
+ 
+    let tensor = tf.tensor4d(pixels, [1, imageSize, imageSize, 3]);
+    tensor.print();
+    console.log(tensor);
+    // TODO we need to do some processing on this tensor to ensure it is of the right form for our input
+
+    
+    // Test using the model on the tensor
+    //console.log(model)
+    //model.predict(tensor).print();
+}
