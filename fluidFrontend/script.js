@@ -26,7 +26,7 @@ SOFTWARE.
 
 const imageSize = 64;
 const canvas = document.createElement("canvas");
-canvas.width = imageSize;
+canvas.width = imageSize * 2;
 canvas.height = imageSize;
 document.body.appendChild(canvas)
 
@@ -1177,7 +1177,7 @@ function step (dt) {
     dye.swap();
 }
 
-function render (target) {
+function render (target) {    
     if (config.BLOOM)
         applyBloom(dye.read, bloom);
     if (config.SUNRAYS) {
@@ -1215,6 +1215,7 @@ function drawCheckerboard (target) {
 function drawDisplay (target) {
     let width = target == null ? gl.drawingBufferWidth : target.width;
     let height = target == null ? gl.drawingBufferHeight : target.height;
+    
 
     displayMaterial.bind();
     if (config.SHADING)
@@ -1228,7 +1229,13 @@ function drawDisplay (target) {
     }
     if (config.SUNRAYS)
         gl.uniform1i(displayMaterial.uniforms.uSunrays, sunrays.attach(3));
-    blit(target);
+
+
+    gl.viewport(canvas.width / 2, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 }
 
 function applyBloom (source, destination) {
@@ -1574,10 +1581,36 @@ function displayTensor(tensor) {
         }
     }
     const uintArray = new Uint8Array(tensorArray.buffer);
-        
+
+    /*
     gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA,
                   gl.UNSIGNED_BYTE, uintArray);
+    */
+
+    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,                // mip level
+        gl.LUMINANCE,     // internal format
+        4,                // width
+        4,                // height
+        0,                // border
+        gl.LUMINANCE,     // format
+        gl.UNSIGNED_BYTE, // type
+        new Uint8Array([  // data
+            192, 128, 192, 128,
+            128, 192, 128, 192,
+            192, 128, 192, 128,
+            128, 192, 128, 192,
+        ]));
+    
+    
+    gl.viewport(0, 0, canvas.width / 2.0, gl.drawingBufferHeight);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 
 }
 
@@ -1598,3 +1631,4 @@ const textFragShader = compileShader(gl.FRAGMENT_SHADER, `
 
 `);
 */
+//const gradienSubtractProgram = new Program(baseVertexShader, gradientSubtractShader);
