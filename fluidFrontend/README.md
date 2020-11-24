@@ -18,6 +18,10 @@ https://stackoverflow.com/questions/48720833/could-not-find-a-version-that-satis
 
 https://stackoverflow.com/questions/50317081/tensorflowjs-converter-command-not-found
 
+Then the JSON needed to be editing according to this post due to another error saying the layer functional was not supported
+
+https://stackoverflow.com/questions/63143849/tensorflow-js-error-unknown-layer-functional
+
 ### Running
 
 First convert the tensorflow generator.h5 pretrained model into the Layers format
