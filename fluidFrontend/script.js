@@ -29,6 +29,11 @@ canvas.width = 64;
 canvas.height = 64;
 document.body.appendChild(canvas)
 
+
+
+const model = tf.loadLayersModel("./layersGenerator/model.json");
+
+
 let config = {
     SIM_RESOLUTION: 512,
     DYE_RESOLUTION: 1024,
