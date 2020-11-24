@@ -1540,12 +1540,61 @@ function readPixels() {
 
  
     let tensor = tf.tensor4d(pixels, [1, imageSize, imageSize, 3]);
+
+    console.log("BEFORE BELOW");
     tensor.print();
-    console.log(tensor);
+    tensor = tensor.mul(2.0).sub(1.0);
+
+    console.log("After below")
+    tensor.print();
     // TODO we need to do some processing on this tensor to ensure it is of the right form for our input
 
     
     // Test using the model on the tensor
     //console.log(model)
     //model.predict(tensor).print();
+    displayTensor(tensor);
 }
+
+
+let modelTexture = null;
+function displayTensor(tensor) {
+    if (modelTexture == null) {
+        modelTexture = gl.createTexture();
+        
+    }
+
+    // Again adding in an alpha value
+    let tensorArrayInput = tensor.dataSync();
+    let tensorArray = new Float32Array(imageSize * imageSize * 4);
+    for (let i = 0; i < imageSize * imageSize * 4; i++) {
+        tensorArray[i] = tensorArrayInput[i]
+        if (i % 4 == 0) {
+            tensorArray[i] = 1.0;
+        }
+    }
+    const uintArray = new Uint8Array(tensorArray.buffer);
+        
+    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA,
+                  gl.UNSIGNED_BYTE, uintArray);
+
+}
+
+const littleEndian = (function machineIsLittleEndian() {
+  const uint8Array = new Uint8Array([0xAA, 0xBB]);
+  const uint16array = new Uint16Array(uint8Array.buffer);
+  return uint16array[0] === 0xBBAA;
+})();
+
+/*
+https://github.com/ihmeuw/glsl-rgba-to-float/blob/master/index.glsl 
+TODO
+const textVertexShader = compileShader(gl.VERTEX_SHADER, `
+
+`);
+
+const textFragShader = compileShader(gl.FRAGMENT_SHADER, `
+
+`);
+*/
