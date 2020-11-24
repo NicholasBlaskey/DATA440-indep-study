@@ -31,6 +31,7 @@ canvas.height = imageSize;
 document.body.appendChild(canvas)
 
 
+let modelTexture = null;
 let model = {};
 tf.loadLayersModel("./layersGenerator/model.json").then(function(res) {
     console.log("PROMISE OFF");
@@ -809,6 +810,20 @@ const gradientSubtractShader = compileShader(gl.FRAGMENT_SHADER, `
     }
 `);
 
+const textureFragShader = compileShader(gl.FRAGMENT_SHADER, `
+    precision mediump float;
+    precision mediump sampler2D;
+
+    varying vec2 vUv;
+    varying vec2 vL;
+    varying vec2 vR;
+    uniform sampler2D uTexture;
+	void main () {
+		gl_FragColor = texture2D(uTexture, vUv);//vec4(0.7, 0.3, 0.9, 1.0);//texture2D(uTexture, vUv);
+	}
+`);
+
+
 const blit = (() => {
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
@@ -875,6 +890,9 @@ const pressureProgram        = new Program(baseVertexShader, pressureShader);
 const gradienSubtractProgram = new Program(baseVertexShader, gradientSubtractShader);
 
 const displayMaterial = new Material(baseVertexShader, displayShaderSource);
+
+
+const textureProgram = new Program(baseVertexShader, textureFragShader);
 
 function initFramebuffers () {
     let simRes = getResolution(config.SIM_RESOLUTION);
@@ -1230,11 +1248,23 @@ function drawDisplay (target) {
     if (config.SUNRAYS)
         gl.uniform1i(displayMaterial.uniforms.uSunrays, sunrays.attach(3));
 
-
+    
     gl.viewport(canvas.width / 2, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+    // Draw the texture...
+    if (modelTexture != null) {
+        gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+        gl.activeTexture(gl.TEXTURE0);
+    }
+    textureProgram.bind();    
+    gl.viewport(0, 0, canvas.width / 2.0, gl.drawingBufferHeight);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    //gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    //gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 }
 
@@ -1548,12 +1578,12 @@ function readPixels() {
  
     let tensor = tf.tensor4d(pixels, [1, imageSize, imageSize, 3]);
 
-    console.log("BEFORE BELOW");
-    tensor.print();
+    //console.log("BEFORE BELOW");
+    //tensor.print();
     tensor = tensor.mul(2.0).sub(1.0);
 
-    console.log("After below")
-    tensor.print();
+    //console.log("After below")
+    //tensor.print();
     // TODO we need to do some processing on this tensor to ensure it is of the right form for our input
 
     
@@ -1563,8 +1593,6 @@ function readPixels() {
     displayTensor(tensor);
 }
 
-
-let modelTexture = null;
 function displayTensor(tensor) {
     if (modelTexture == null) {
         modelTexture = gl.createTexture();
@@ -1589,6 +1617,7 @@ function displayTensor(tensor) {
     */
 
     gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+    gl.activeTexture(gl.TEXTURE0);
     gl.texImage2D(
         gl.TEXTURE_2D,
         0,                // mip level
@@ -1604,14 +1633,21 @@ function displayTensor(tensor) {
             192, 128, 192, 128,
             128, 192, 128, 192,
         ]));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);    
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);    
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    console.log("DISPLAYING");
     
-    
-    gl.viewport(0, 0, canvas.width / 2.0, gl.drawingBufferHeight);
+    textureProgram.bind();    
+    gl.viewport(0, 0, canvas.width, gl.drawingBufferHeight);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 
+    //ds
 }
 
 const littleEndian = (function machineIsLittleEndian() {
@@ -1623,12 +1659,4 @@ const littleEndian = (function machineIsLittleEndian() {
 /*
 https://github.com/ihmeuw/glsl-rgba-to-float/blob/master/index.glsl 
 TODO
-const textVertexShader = compileShader(gl.VERTEX_SHADER, `
-
-`);
-
-const textFragShader = compileShader(gl.FRAGMENT_SHADER, `
-
-`);
 */
-//const gradienSubtractProgram = new Program(baseVertexShader, gradientSubtractShader);
