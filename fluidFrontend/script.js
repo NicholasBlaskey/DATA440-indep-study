@@ -1605,18 +1605,23 @@ function displayTensor(tensor) {
     let tensorArrayInput = tensor.dataSync();
     //let tensorArray = new Float32Array(imageSize * imageSize * 4);
     let texPixels = new Uint8Array(imageSize * imageSize * 4);
-    for (let i = 0; i < imageSize * imageSize * 4; i++) {
+    let index = 0;
+    for (let i = 0; i < imageSize * imageSize * 3; i++) {        
          // Not perfect by any means
-        texPixels[i] = Math.round((tensorArrayInput[i] * 0.5 + 0.5) * 255);
+        texPixels[index] = Math.round((tensorArrayInput[i] * 0.5 + 0.5) * 255);
         //tensorArray[i] = tensorArrayInput[i]
         
-        if ((i + 1) % 4 == 0) {
-            texPixels[i] = 255;
+        index += 1;
+        
+        if ((i + 1) % 3 == 0) {
+            texPixels[index] = 255;
+            index += 1;
             //tensorArray[i] = 1.0;
         }
+
     }
-    console.log(tensorArrayInput)//.print()
-    console.log(texPixels)
+    console.log(tensorArrayInput);//.print()
+    console.log(texPixels);
     
     //const uintArray = new Uint8Array(tensorArray.buffer);
 
