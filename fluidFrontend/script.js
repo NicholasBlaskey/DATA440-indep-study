@@ -31,8 +31,11 @@ const canvas = document.createElement("canvas");
 let modelLoaded = false;
 let prevTensor;
 let timeSinceStep = 0.0;
+let canvasDims = 512;
 canvas.width = imageSize * 2;
 canvas.height = imageSize;
+//canvas.width = canvasDims * 2;//imageSize * 2;
+//canvas.height = canvasDims;//imageSize;
 document.body.appendChild(canvas)
 
 
@@ -1265,7 +1268,6 @@ function drawDisplay (target) {
     }
     if (config.SUNRAYS)
         gl.uniform1i(displayMaterial.uniforms.uSunrays, sunrays.attach(3));
-
     
     gl.viewport(canvas.width / 2, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1579,11 +1581,32 @@ function hashCode (s) {
 };
 
 
+let dyeResizedFBO = null;
+
+
 // Tensorflow stuff
 // Read the WebGL Pixels into a tensor to seed the model
 function readPixels() {
     let pixels = new Uint8Array(imageSize * imageSize * 4);
+    
+    // We should read the dye framebuffer instead
+    // 1. Create a new framebuffer being 64, 64
+    if (dyeResizedFBO == null) {
+        dyeResizedFBO = createFBO(imageSize, imageSize, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+    }
+    // 2. Copy the dye framebuffer into the new framebuffer
+    render(dyeResizedFBO)
+    /*copyProgram.bind()
+    gl.uniform1i(copyProgram.uniforms.uTexture, dye.read.attach(0));
+    blit(dyeResizedFBO);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dyeResizedFBO.fbo);
+*/
+    // 3. Run gl readPixels off the new framebuffer
     gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    // 4. PROFIT???
+    console.log(pixels);
+    
+    
     // Remove alpha values (webgl requires we take them) Ideally we would do this
     // with a tensor opertation but I am not sure how to do that easily
     pixels = pixels.filter(function(_, i) {
@@ -1623,10 +1646,6 @@ function displayTensor(tensor) {
         }
     }
 
-    //console.log(tensorArrayInput);//.print()
-    //console.log(texPixels);
-    
-
     gl.activeTexture(gl.TEXTURE0);    
     gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA,
@@ -1635,15 +1654,6 @@ function displayTensor(tensor) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);    
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    //console.log("DISPLAYING");
-    
-    textureProgram.bind();    
-    gl.viewport(0, 0, canvas.width, gl.drawingBufferHeight);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 }
 
 function stepTensor(tensor) {
