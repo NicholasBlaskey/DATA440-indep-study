@@ -1572,15 +1572,17 @@ function hashCode (s) {
 function readPixels() {
     //let pixels = new Float32Array(imageSize * imageSize * 4);
     let pixels = new Uint8Array(imageSize * imageSize * 4);
-    
+
+    /*
     console.log("WIDTH " + (canvas.width))
     console.log("WIDTH/2 " + (canvas.width / 2))
     console.log("HEIGHT " + (canvas.height))
-    console.log("IMAGESIZE " + imageSize)
-    gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    console.log("IMAGESIZE " + imageSize)  
     console.log("PIXELS");
     console.log(pixels);
-    
+    */
+
+    gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     // Remove alpha values (webgl requires we take them) Ideally we would do this
     // with a tensor opertation but I am not sure how to do that easily
     pixels = pixels.filter(function(_, i) {
@@ -1607,7 +1609,7 @@ function readPixels() {
     // Test using the model on the tensor
     //console.log(model)
     //model.predict(tensor).print();
-    displayTensor(tensor);
+    displayTensor(model.predict(tensor));//tensor);
 }
 
 function displayTensor(tensor) {
@@ -1616,55 +1618,30 @@ function displayTensor(tensor) {
         
     }
     
-    // Again adding in an alpha value
+    // Again adding in an alpha value and converting from float to byte
     let tensorArrayInput = tensor.dataSync();
-    //let tensorArray = new Float32Array(imageSize * imageSize * 4);
     let texPixels = new Uint8Array(imageSize * imageSize * 4);
     let index = 0;
     for (let i = 0; i < imageSize * imageSize * 3; i++) {        
         // Not perfect by any means
         // [-1, 1] to [-0.5, 0.5] to [0, 1] to ~[0, 255]
         texPixels[index] = Math.round((tensorArrayInput[i] * 0.5 + 0.5) * 255);
-        //tensorArray[i] = tensorArrayInput[i]
         
-        index += 1;
-        
+        index += 1;        
         if ((i + 1) % 3 == 0) {
             texPixels[index] = 255;
             index += 1;
-            //tensorArray[i] = 1.0;
         }
-
     }
-    console.log(tensorArrayInput);//.print()
-    console.log(texPixels);
+
+    //console.log(tensorArrayInput);//.print()
+    //console.log(texPixels);
     
-    //const uintArray = new Uint8Array(tensorArray.buffer);
 
     gl.activeTexture(gl.TEXTURE0);    
     gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA,
                   gl.UNSIGNED_BYTE, texPixels);    
-
-    
-
-    /*
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,                // mip level
-        gl.LUMINANCE,     // internal format
-        4,                // width
-        4,                // height
-        0,                // border
-        gl.LUMINANCE,     // format
-        gl.UNSIGNED_BYTE, // type
-        new Uint8Array([  // data
-            192, 128, 192, 128,
-            128, 192, 128, 192,
-            192, 128, 192, 128,
-            128, 192, 128, 192,
-        ]));
-    */
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);    
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);    
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -1678,8 +1655,6 @@ function displayTensor(tensor) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-
-    //ds
 }
 
 const littleEndian = (function machineIsLittleEndian() {
