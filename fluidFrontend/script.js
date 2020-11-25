@@ -95,7 +95,7 @@ if (!ext.supportLinearFiltering) {
 }
 
 function getWebGLContext (canvas) {
-    const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: false };
+    const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: true };
 
     let gl = canvas.getContext('webgl2', params);
     const isWebGL2 = !!gl;
@@ -1128,8 +1128,12 @@ function updateColors (dt) {
 }
 
 function applyInputs () {
-    if (splatStack.length > 0)
+    if (splatStack.length > 0) {
         multipleSplats(splatStack.pop());
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        readPixels()
+    }
 }
 
 function step (dt) {
@@ -1353,8 +1357,6 @@ function multipleSplats (amount) {
         const dy = 1000 * (Math.random() - 0.5);
         splat(x, y, dx, dy, cols[i]);
     }
-
-    readPixels()
 }
 
 function splat (x, y, dx, dy, color) {
@@ -1568,18 +1570,31 @@ function hashCode (s) {
 // Tensorflow stuff
 // Read the WebGL Pixels into a tensor to seed the model
 function readPixels() {
-    let pixels = new Float32Array(imageSize * imageSize * 4);
-    gl.readPixels(0, 0, imageSize, imageSize, gl.RGBA, gl.FLOAT, pixels); // TODO change after viewport
-
+    //let pixels = new Float32Array(imageSize * imageSize * 4);
+    let pixels = new Uint8Array(imageSize * imageSize * 4);
+    
+    console.log("WIDTH " + (canvas.width))
+    console.log("WIDTH/2 " + (canvas.width / 2))
+    console.log("HEIGHT " + (canvas.height))
+    console.log("IMAGESIZE " + imageSize)
+    gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    console.log("PIXELS");
+    console.log(pixels);
+    
     // Remove alpha values (webgl requires we take them) Ideally we would do this
     // with a tensor opertation but I am not sure how to do that easily
     pixels = pixels.filter(function(_, i) {
         return (i + 1) % 4;
     })
 
- 
-    let tensor = tf.tensor4d(pixels, [1, imageSize, imageSize, 3]);
+    let floatPixels = new Float32Array(imageSize * imageSize * 3);
+    for (var i = 0; i < imageSize * imageSize * 3; i++) {
+        floatPixels[i] = pixels[i] / 255.0
+    }
+    
+    let tensor = tf.tensor4d(floatPixels, [1, imageSize, imageSize, 3]);
 
+    // [0, 1] to [0, 2] to [-1, 1]
     //console.log("BEFORE BELOW");
     //tensor.print();
     tensor = tensor.mul(2.0).sub(1.0);
@@ -1600,14 +1615,15 @@ function displayTensor(tensor) {
         modelTexture = gl.createTexture();
         
     }
-
+    
     // Again adding in an alpha value
     let tensorArrayInput = tensor.dataSync();
     //let tensorArray = new Float32Array(imageSize * imageSize * 4);
     let texPixels = new Uint8Array(imageSize * imageSize * 4);
     let index = 0;
     for (let i = 0; i < imageSize * imageSize * 3; i++) {        
-         // Not perfect by any means
+        // Not perfect by any means
+        // [-1, 1] to [-0.5, 0.5] to [0, 1] to ~[0, 255]
         texPixels[index] = Math.round((tensorArrayInput[i] * 0.5 + 0.5) * 255);
         //tensorArray[i] = tensorArrayInput[i]
         
@@ -1625,7 +1641,6 @@ function displayTensor(tensor) {
     
     //const uintArray = new Uint8Array(tensorArray.buffer);
 
-    gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     gl.activeTexture(gl.TEXTURE0);    
     gl.bindTexture(gl.TEXTURE_2D, modelTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA,
