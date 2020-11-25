@@ -26,17 +26,23 @@ SOFTWARE.
 'use strict';
 
 const imageSize = 64;
+const DT = 0.1;
 const canvas = document.createElement("canvas");
+let modelLoaded = false;
+let prevTensor;
+let timeSinceStep = 0.0;
 canvas.width = imageSize * 2;
 canvas.height = imageSize;
 document.body.appendChild(canvas)
 
 
+let shouldReadPixels = false;
 let modelTexture = null;
 let model = {};
 tf.loadLayersModel("./layersGenerator/model.json").then(function(res) {
     console.log("PROMISE OFF");
     model = res;
+    modelLoaded = true;
 });
 console.log(model);
 
@@ -1088,21 +1094,28 @@ initFramebuffers();
 
 let lastUpdateTime = Date.now();
 let colorUpdateTimer = 0.0;
+prevTensor = tf.ones([1, imageSize, imageSize, 3]).mul(-1);
 update();
 
 function update () {
     const dt = calcDeltaTime();
-    //if (resizeCanvas())
-    //initFramebuffers();
-    updateColors(dt);
-    applyInputs();
-    if (!config.PAUSED)
-        step(dt);
-    render(null);
 
-    // UPDATE tensorflow guy HERE and get closet DT to it / every n seconds update
-    // (it is gonna be a lot choppier / add an option somewhere to only update every x frames)
-    
+    timeSinceStep += dt
+    step(dt);    
+    if (shouldReadPixels) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        prevTensor = readPixels();
+        shouldReadPixels = false;
+    }
+    if (timeSinceStep >= DT) {        
+        timeSinceStep = 0;       
+
+        applyInputs();        
+        prevTensor = stepTensor(prevTensor);
+        displayTensor(prevTensor);
+        
+        render(null);        
+    }
     requestAnimationFrame(update);
 }
 
@@ -1130,9 +1143,8 @@ function updateColors (dt) {
 function applyInputs () {
     if (splatStack.length > 0) {
         multipleSplats(splatStack.pop());
-
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        readPixels()
+        shouldReadPixels = true;
     }
 }
 
@@ -1570,18 +1582,7 @@ function hashCode (s) {
 // Tensorflow stuff
 // Read the WebGL Pixels into a tensor to seed the model
 function readPixels() {
-    //let pixels = new Float32Array(imageSize * imageSize * 4);
     let pixels = new Uint8Array(imageSize * imageSize * 4);
-
-    /*
-    console.log("WIDTH " + (canvas.width))
-    console.log("WIDTH/2 " + (canvas.width / 2))
-    console.log("HEIGHT " + (canvas.height))
-    console.log("IMAGESIZE " + imageSize)  
-    console.log("PIXELS");
-    console.log(pixels);
-    */
-
     gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     // Remove alpha values (webgl requires we take them) Ideally we would do this
     // with a tensor opertation but I am not sure how to do that easily
@@ -1597,25 +1598,13 @@ function readPixels() {
     let tensor = tf.tensor4d(floatPixels, [1, imageSize, imageSize, 3]);
 
     // [0, 1] to [0, 2] to [-1, 1]
-    //console.log("BEFORE BELOW");
-    //tensor.print();
-    tensor = tensor.mul(2.0).sub(1.0);
-
-    //console.log("After below")
-    //tensor.print();
-    // TODO we need to do some processing on this tensor to ensure it is of the right form for our input
-
-    
-    // Test using the model on the tensor
-    //console.log(model)
-    //model.predict(tensor).print();
-    displayTensor(model.predict(tensor));//tensor);
+    return tensor.mul(2.0).sub(1.0);    
+    //displayTensor(model.predict(tensor));
 }
 
 function displayTensor(tensor) {
     if (modelTexture == null) {
-        modelTexture = gl.createTexture();
-        
+        modelTexture = gl.createTexture();        
     }
     
     // Again adding in an alpha value and converting from float to byte
@@ -1647,7 +1636,7 @@ function displayTensor(tensor) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-    console.log("DISPLAYING");
+    //console.log("DISPLAYING");
     
     textureProgram.bind();    
     gl.viewport(0, 0, canvas.width, gl.drawingBufferHeight);
@@ -1657,13 +1646,11 @@ function displayTensor(tensor) {
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 }
 
-const littleEndian = (function machineIsLittleEndian() {
-  const uint8Array = new Uint8Array([0xAA, 0xBB]);
-  const uint16array = new Uint16Array(uint8Array.buffer);
-  return uint16array[0] === 0xBBAA;
-})();
-
-/*
-  https://github.com/ihmeuw/glsl-rgba-to-float/blob/master/index.glsl 
-TODO
-*/
+function stepTensor(tensor) {
+    //console.log(model);
+    if (!modelLoaded) { // Case model where hasn't loaded yet
+        //console.log("HAS NOT LOADED")
+        return tensor
+    }
+    return model.predict(tensor)
+}
