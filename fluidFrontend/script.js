@@ -31,8 +31,8 @@ const canvas = document.createElement("canvas");
 let modelLoaded = false;
 let prevTensor;
 let timeSinceStep = 0.0;
-canvas.width = imageSize * 2;
-canvas.height = imageSize;
+canvas.width = 1024//imageSize * 2;
+canvas.height = 512//imageSize;
 document.body.appendChild(canvas)
 
 
@@ -1562,6 +1562,7 @@ function wrap (value, min, max) {
 }
 
 function getResolution (resolution) {
+    /*
     let aspectRatio = gl.drawingBufferWidth / gl.drawingBufferHeight;
     if (aspectRatio < 1)
         aspectRatio = 1.0 / aspectRatio;
@@ -1573,6 +1574,8 @@ function getResolution (resolution) {
         return { width: max, height: min };
     else
         return { width: min, height: max };
+    */
+    return { width: resolution, height: resolution };
 }
 
 function getTextureScale (texture, width, height) {
