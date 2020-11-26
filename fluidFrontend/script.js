@@ -835,6 +835,21 @@ const textureFragShader = compileShader(gl.FRAGMENT_SHADER, `
 `);
 
 
+const testShader = compileShader(gl.FRAGMENT_SHADER, `
+    precision mediump float;
+    precision mediump sampler2D;
+
+    varying vec2 vUv;
+    varying vec2 vL;
+    varying vec2 vR;
+    uniform sampler2D uTexture;
+
+	void main () {
+		gl_FragColor = vec4(0.7, 0.3, 0.9, 1.0);
+	}
+`);
+
+
 const blit = (() => {
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
@@ -902,8 +917,9 @@ const gradienSubtractProgram = new Program(baseVertexShader, gradientSubtractSha
 
 const displayMaterial = new Material(baseVertexShader, displayShaderSource);
 
-
 const textureProgram = new Program(baseVertexShader, textureFragShader);
+
+const testProgram = new Program(baseVertexShader, testShader);
 
 function initFramebuffers () {
     let simRes = getResolution(config.SIM_RESOLUTION);
@@ -1268,6 +1284,20 @@ function drawDisplay (target) {
     }
     if (config.SUNRAYS)
         gl.uniform1i(displayMaterial.uniforms.uSunrays, sunrays.attach(3));
+
+
+    // TODO fix this  so that it calls blit target...
+    if (target != null) {
+        //blit(target);
+        console.log(width)
+        gl.viewport(0, 0, width, height);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+        console.log("GOING OFF")
+        return
+    }
     
     gl.viewport(canvas.width / 2, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -1594,15 +1624,45 @@ function readPixels() {
     if (dyeResizedFBO == null) {
         dyeResizedFBO = createFBO(imageSize, imageSize, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
     }
+    console.log(dyeResizedFBO);
     // 2. Copy the dye framebuffer into the new framebuffer
-    render(dyeResizedFBO)
-    /*copyProgram.bind()
-    gl.uniform1i(copyProgram.uniforms.uTexture, dye.read.attach(0));
+    render(dyeResizedFBO);
+    //displayMaterial.bind()
+    /*
+    copyProgram.bind()
+    gl.uniform1i(copyProgram.uniforms.uTexture, dye.fbo);//dye.read.attach(0));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dyeResizedFBO.fbo);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    //gl.uniform1i(displayMaterial.uniforms.uTexture, dye.read.attach(0));
+    gl.viewport(0, 0, imageSize, imageSize);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+    */
+    //blit(dyeResizedFBO)
+    //copyProgram.bind()
+    //gl.uniform1i(copyProgram.uniforms.uTexture, dye.write.attach(0));
+    //blit(dyeResizedFBO)
+    //render(dyeResizedFBO)
+    //copyProgram.bind()
+
+    /*
+    testProgram.bind();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dyeResizedFBO.fbo)
+    gl.viewport(0, 0, imageSize, imageSize);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+    */
+    //displayMaterial.bind()
+    //gl.uniform1i(displayMaterial.uniforms.uTexture, dye.read.attach(0));
+
+    //gl.uniform1i(copyProgram.uniforms.uTexture, dye.read.attach(0));
+    //blit(dyeResizedFBO)
+/*
     blit(dyeResizedFBO);
     gl.bindFramebuffer(gl.FRAMEBUFFER, dyeResizedFBO.fbo);
 */
     // 3. Run gl readPixels off the new framebuffer
-    gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    gl.readPixels(0, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     // 4. PROFIT???
     console.log(pixels);
     
