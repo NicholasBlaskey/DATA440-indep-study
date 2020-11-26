@@ -103,6 +103,7 @@ if (!ext.supportLinearFiltering) {
     config.SUNRAYS = false;
 }
 
+
 function getWebGLContext (canvas) {
     const params = { alpha: true, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: true };
 
@@ -866,6 +867,7 @@ const blit = (() => {
         }
         else
         {
+            //console.log(target.width + "|" + target.height);
             gl.viewport(0, 0, target.width, target.height);
             gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
         }
@@ -925,6 +927,9 @@ function initFramebuffers () {
     let simRes = getResolution(config.SIM_RESOLUTION);
     let dyeRes = getResolution(config.DYE_RESOLUTION);
 
+    console.log(simRes);
+    console.log(dyeRes);
+    
     const texType = ext.halfFloatTexType;
     const rgba    = ext.formatRGBA;
     const rg      = ext.formatRG;
@@ -1122,7 +1127,7 @@ function update () {
     timeSinceStep += dt
     step(dt);    
     if (shouldReadPixels) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        //gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         prevTensor = readPixels();
         shouldReadPixels = false;
     }
@@ -1243,13 +1248,12 @@ function render (target) {
     if (target == null || !config.TRANSPARENT) {
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.enable(gl.BLEND);
-    }
-    else {
+    } else {
         gl.disable(gl.BLEND);
     }
 
-    if (!config.TRANSPARENT)
-        drawColor(target, normalizeColor(config.BACK_COLOR));
+    //if (!config.TRANSPARENT)
+    //    drawColor(target, normalizeColor(config.BACK_COLOR));
     if (target == null && config.TRANSPARENT)
         drawCheckerboard(target);
     drawDisplay(target);
@@ -1289,18 +1293,18 @@ function drawDisplay (target) {
     // TODO fix this  so that it calls blit target...
     if (target != null) {
         //blit(target);
-        console.log(width)
-        gl.viewport(0, 0, width, height);
+        console.log(width, height)
         gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+        gl.viewport(0, 0, width, height);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-        console.log("GOING OFF")
+        console.log("GOING OFF");       
         return
     }
-    
-    gl.viewport(canvas.width / 2, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(canvas.width / 2, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -1575,6 +1579,8 @@ function wrap (value, min, max) {
 }
 
 function getResolution (resolution) {
+    return {width: resolution, height: resolution};
+    /*
     let aspectRatio = gl.drawingBufferWidth / gl.drawingBufferHeight;
     if (aspectRatio < 1)
         aspectRatio = 1.0 / aspectRatio;
@@ -1586,6 +1592,7 @@ function getResolution (resolution) {
         return { width: max, height: min };
     else
         return { width: min, height: max };
+*/
 }
 
 function getTextureScale (texture, width, height) {
@@ -1662,7 +1669,9 @@ function readPixels() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, dyeResizedFBO.fbo);
 */
     // 3. Run gl readPixels off the new framebuffer
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dyeResizedFBO.fbo)
     gl.readPixels(0, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     // 4. PROFIT???
     console.log(pixels);
     
@@ -1718,7 +1727,7 @@ function displayTensor(tensor) {
 
 function stepTensor(tensor) {
     //console.log(model);
-    if (!modelLoaded) { // Case model where hasn't loaded yet
+    if (!modelLoaded) {// || true) { // Case model where hasn't loaded yet
         //console.log("HAS NOT LOADED")
         return tensor
     }
