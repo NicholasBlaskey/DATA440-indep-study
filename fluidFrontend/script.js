@@ -1090,6 +1090,7 @@ function updateKeywords () {
 
 updateKeywords();
 initFramebuffers();
+let preResizedBuffer = createFBO(imageSize * 2, imageSize, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
 //multipleSplats(parseInt(Math.random() * 20) + 5);
 
 let lastUpdateTime = Date.now();
@@ -1103,7 +1104,7 @@ function update () {
     timeSinceStep += dt
     step(dt);    
     if (shouldReadPixels) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, preResizedBuffer.fbo)
         prevTensor = readPixels();
         shouldReadPixels = false;
     }
@@ -1266,24 +1267,42 @@ function drawDisplay (target) {
     if (config.SUNRAYS)
         gl.uniform1i(displayMaterial.uniforms.uSunrays, sunrays.attach(3));
 
-    
-    gl.viewport(canvas.width / 2, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
 
-    // Draw the texture...
-    if (modelTexture != null) {
-        gl.bindTexture(gl.TEXTURE_2D, modelTexture);
-        gl.activeTexture(gl.TEXTURE0);
-    }
-    textureProgram.bind();    
-    gl.viewport(0, 0, canvas.width / 2.0, gl.drawingBufferHeight);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    //gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, preResizedBuffer.fbo)
+    //gl.clearColor(0.7, 0.3, 0.7, 1.0);
     //gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+    
+    { // Render to a framebuffer
+        gl.bindFramebuffer(gl.FRAMEBUFFER, preResizedBuffer.fbo)
+        gl.viewport(imageSize, 0, imageSize * 2, imageSize);
+        //gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+        // Draw the texture...
+        if (modelTexture != null) {
+            gl.bindTexture(gl.TEXTURE_2D, modelTexture);
+            gl.activeTexture(gl.TEXTURE0);
+        }
+        textureProgram.bind();    
+        gl.viewport(0, 0, imageSize, imageSize);
+        //gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        //gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+
+        //readPixels()
+    }
+
+    
+    { // Render that texture over the screen
+        gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        preResizedBuffer.attach(0);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+    }
 }
 
 function applyBloom (source, destination) {
@@ -1582,19 +1601,27 @@ function hashCode (s) {
 // Tensorflow stuff
 // Read the WebGL Pixels into a tensor to seed the model
 function readPixels() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, preResizedBuffer.fbo);
+    //console.log(preResizedBuffer);
     let pixels = new Uint8Array(imageSize * imageSize * 4);
+    gl.viewport(0, 0, imageSize * 2, imageSize);
     gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    //gl.readPixels(imageSize, 0, imageSize, imageSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
     // Remove alpha values (webgl requires we take them) Ideally we would do this
     // with a tensor opertation but I am not sure how to do that easily
     pixels = pixels.filter(function(_, i) {
         return (i + 1) % 4;
     })
-
+    console.log(pixels);
+    
     let floatPixels = new Float32Array(imageSize * imageSize * 3);
     for (var i = 0; i < imageSize * imageSize * 3; i++) {
-        floatPixels[i] = pixels[i] / 255.0
+        floatPixels[i] = pixels[i] / 255.0;
     }
-    
+
+
+    console.log(floatPixels);
     let tensor = tf.tensor4d(floatPixels, [1, imageSize, imageSize, 3]);
 
     // [0, 1] to [0, 2] to [-1, 1]
@@ -1615,7 +1642,7 @@ function displayTensor(tensor) {
         // Not perfect by any means
         // [-1, 1] to [-0.5, 0.5] to [0, 1] to ~[0, 255]
         texPixels[index] = Math.round((tensorArrayInput[i] * 0.5 + 0.5) * 255);
-        
+
         index += 1;        
         if ((i + 1) % 3 == 0) {
             texPixels[index] = 255;
@@ -1637,13 +1664,14 @@ function displayTensor(tensor) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
     //console.log("DISPLAYING");
-    
+    /*
     textureProgram.bind();    
     gl.viewport(0, 0, canvas.width, gl.drawingBufferHeight);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, preResizedBuffer.fbo);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+*/
 }
 
 function stepTensor(tensor) {
